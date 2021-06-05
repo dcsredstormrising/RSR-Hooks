@@ -625,7 +625,26 @@ function M.onPlayerTryChangeSlot(playerId, side, slotId)
 
     local unitRole = DCS.getUnitType(slotId)
 
-
+----------------------
+--CHECK FOR IN-AIR SLOT SWAPPING
+------------------------
+    local unitName = DCS.getUnitProperty(slotId, DCS.UNIT_NAME)
+    if unitName == nil or unitName == "" then
+        net.log("IN_AIR: Skipping air check for slot " .. slotId)
+    else
+		net.log('IN_AIR: checking if unit in air: '..unitName)
+		local str = ' return trigger.misc.getUserFlag("'..unitName..'_IN AIR");'
+		local status = net.dostring_in('server', str)
+		net.log('IN_AIR: '..status)
+		if (status == "1") then
+			net.log('IN_AIR: denying slot switch, unit in air')
+			net.send_chat_to("***You need to land in order to change slots***", playerId)
+			return false 
+			--this denys the slot switch.
+		else
+			net.log('IN_AIR: allowing slot switch, unit on ground')
+		end
+	end
 
     -------------------------------------------------------------------------------
     -- NON Aircraft slots check. (TACCOM / Game Master / JTAC)
