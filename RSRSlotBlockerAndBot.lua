@@ -625,7 +625,27 @@ function M.onPlayerTryChangeSlot(playerId, side, slotId)
 
     local unitRole = DCS.getUnitType(slotId)
 
-
+----------------------
+--CHECK FOR IN-AIR SLOT SWAPPING
+------------------------
+    local player_UCID = net.get_player_info(playerId, 'ucid')
+    if player_UCID == nil or player_UCID == "" then
+        net.log("AIR_CHECK: Unable to get ucid " .. playerId)
+    else
+		net.log('AIR_CHECK: checking if player in air: '..player_UCID)
+		
+		local str = ' return trigger.misc.getUserFlag("'..player_UCID..'_IN AIR");'
+		local status = net.dostring_in('server', str)
+		net.log('AIR_CHECK: '..status)
+		if (status == "1") then
+			net.log('AIR_CHECK: denying slot switch, unit in air')
+			net.send_chat_to("***You need to land in order to change slots***", playerId)
+			return false 
+			--this denys the slot switch.
+		else
+			net.log('AIR_CHECK: allowing slot switch, player on ground')
+		end
+    end   
 
     -------------------------------------------------------------------------------
     -- NON Aircraft slots check. (TACCOM / Game Master / JTAC)
@@ -799,6 +819,26 @@ function M.onPlayerTryChangeSlot(playerId, side, slotId)
     -------------------------------------------------------------------------------
     -- End Aircraft slots check.
     -------------------------------------------------------------------------------
+end
+
+--TRACK TAKEOFFS AND LANDING-LIKE EVENTS FOR THE SLOTBLOCK.
+function M.onGameEvent(event_name,playerId,slotId,...)
+	if(event_name == "takeoff") then
+		local player_UCID = net.get_player_info(playerId, 'ucid')
+		if player_UCID ~= nil then
+			local set_str = [[trigger.action.setUserFlag(']]..player_UCID.."_IN AIR"..[[',1)]];
+			local set_status = net.dostring_in('server',set_str);
+			net.log('AIR_CHECK: Setuserflag1 '..'Player_UCID: '..player_UCID..' slot: '..slotId..set_status)
+		end
+	end
+	if (event_name == "eject" or event_name == "crash" or event_name == "landing" or event_name == "pilot_death"  or event_name == "change_slot" or event_name == "connect") then
+		local player_UCID = net.get_player_info(playerId, 'ucid')
+		if player_UCID ~= nil then
+			local set_str = [[trigger.action.setUserFlag(']]..player_UCID.."_IN AIR"..[[',0)]];
+			local set_status = net.dostring_in('server',set_str);
+			net.log('AIR_CHECK: Setuserflag0 '..player_UCID..' : '..set_status)
+		end
+	end
 end
 
 DCS.setUserCallbacks(M)
