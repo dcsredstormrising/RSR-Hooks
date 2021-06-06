@@ -612,7 +612,7 @@ end
 function M.onPlayerTryChangeSlot(playerId, side, slotId)
 	
     --Make sure its running as a multiplayer server, and the slot isnt spectator.
-    if not DCS.isServer() or not DCS.isMultiplayer() or side == 0 or slotId == '' or slotId == nil then
+    if not DCS.isServer() or not DCS.isMultiplayer() then
         return
     end
 
