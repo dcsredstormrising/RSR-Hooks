@@ -831,7 +831,7 @@ function M.onGameEvent(event_name,playerId,slotId,...)
 			net.log('AIR_CHECK: Setuserflag1 '..'Player_UCID: '..player_UCID..' slot: '..slotId..set_status)
 		end
 	end
-	if (event_name == "eject" or event_name == "crash" or event_name == "landing" or event_name == "pilot_death"  or event_name == "change_slot") then
+	if (event_name == "eject" or event_name == "crash" or event_name == "landing" or event_name == "pilot_death"  or event_name == "change_slot" or event_name == "connect") then
 		local player_UCID = net.get_player_info(playerId, 'ucid')
 		if player_UCID ~= nil then
 			local set_str = [[trigger.action.setUserFlag(']]..player_UCID.."_IN AIR"..[[',0)]];
