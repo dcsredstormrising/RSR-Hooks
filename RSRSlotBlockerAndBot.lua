@@ -9,7 +9,7 @@ local dataToSend = {}
 --options!
 -----------------------------------
 local udpEventHost = "127.0.0.1"
-local udpEventPort = 6969
+local udpEventPort = 9595
 --set this to false if you want BOT Voice Channel checking AND UCID Table lookup!
 JustBotCheckingOnly = true
 
@@ -17,9 +17,9 @@ JustBotCheckingOnly = true
 function queryBotAPI(endpoint)
     -- the host value here is always 127.0.0.1, the bot has to run locally to the server.
     local host = "127.0.0.1"
-    local port = 9595
+    local port = 8000
     local c = socket.tcp()
-    c:settimeout(0.01)
+    c:settimeout(1)
     c:connect(host, port)
     --the connect function above has ZERO connection-state awareness. The only way to check if its open, is to attempt to send data.
     --in this case, sending will return the number of bytes sent, the error (if there is one), and index of the last byte sent (if its interrupted mid-send.)
@@ -43,7 +43,7 @@ function queryBotAPI(endpoint)
 		--net.log(inspect(response))
         for str in string.gmatch(result, "([^\n]+)") do
                 table.insert(response, str)
-				--net.log(str)
+				net.log(str)
         end
 		
         status = string.sub(response[1],10)
@@ -56,7 +56,7 @@ function queryBotAPI(endpoint)
         end
     else
         -- The connection to the botAPI didnt work, for whatever reason, so log this and return a FAIL response to the caller.
-        print("BotAPI Error: "..sendError)
+        net.log("BotAPI Error: "..sendError)
 		c:close()
         return "FAIL"
     end
@@ -112,9 +112,9 @@ local function getPlayerList()
 		end
 	end
 	dataToSend.id = 50
-	dataToSend.BoardBlue = blueCount
-	dataToSend.BoardRed = redCount
-	dataToSend.BoardSpec = specCount
+	dataToSend.board_blue = blueCount
+	dataToSend.board_red = redCount
+	dataToSend.board_spec = specCount
 	sendBotEvent(dataToSend)
 end
 
@@ -130,11 +130,11 @@ playerList.onChatMessage = function(message, whofrom)
 	net.log("CHAT: "..whofrom .." : "..message)
 	local eventData = {}
 	eventData.id = 52
-	eventData.Initiator = whofrom
+	eventData.initiator = whofrom
 	if net.get_player_info(whofrom) ~= nil then
             local playerDetails = net.get_player_info(whofrom)
-            eventData.Initiator = playerDetails.name
-            eventData.InitiatorCoalition = playerDetails.side
+            eventData.initiator = playerDetails.name
+            eventData.initiator_coalition = playerDetails.side
 			if message == "-taccomcheck" then
 				--net.log("tac checker")
 				for k, v in pairs(net.get_player_list()) do
@@ -148,7 +148,7 @@ playerList.onChatMessage = function(message, whofrom)
 						local found = false
 						--net.log("taccheck 1")
 						--get the gci members from discord
-						local res = queryBotAPI("/api/taccom/".. playerUcid .."/"..urlencode(playerName))
+						local res = queryBotAPI("/api/voice/".. playerUcid)
 						--check for fail reponse from the queryBotAPI func.
 						--if its FAIL, it means the connection to the API failed (bots not running), so pretend the player was found in the response.
 						--net.log("taccheck 2")
@@ -160,7 +160,7 @@ playerList.onChatMessage = function(message, whofrom)
 							--net.log("taccheck success")
 							local decode = JSON:decode(res)
 							--net.log(inspect(decode))
-							if decode["status"] == 1 then
+							if decode["response"] == "1" then
 								--do nothing, its a success.
 								--net.log("taccheck status 1")
 							else
@@ -174,48 +174,62 @@ playerList.onChatMessage = function(message, whofrom)
 				end
 			end
     end 	
-	eventData.ChatMessage = message
+	eventData.chat_message = message
 	sendBotEvent(eventData)
 end
 
 playerList.onTriggerMessage = function(message, duration, clearview)
 	local eventData = {}
 	eventData.id = 52
-	eventData.InitiatorCoalition = 4
-	eventData.Initiator = "MSG"
-	eventData.ChatMessage = message
+	eventData.initiator_coalition = 4
+	eventData.initiator = "MSG"
+	eventData.chat_message = message
+	sendBotEvent(eventData)
+end
+
+playerList.onPlayerConnect = function(id)
+	local eventData = {}
+	if net.get_player_info(id) ~= nil then
+            local initiatorDetails = net.get_player_info(id)
+            eventData.initiator = initiatorDetails.name
+            eventData.initiator_ucid = initiatorDetails.ucid
+    end
+	eventData.id = 55
 	sendBotEvent(eventData)
 end
 
 
 playerList.onGameEvent = function(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7) 
+    if eventName == "unit_lost" then
+        net.log("unit lost: ".. arg1 .. arg2 .. arg3)
+    end
     if eventName == "kill" then
         local eventData = {}
         
         --initiator - if you cant get the player_info of the id, it means they are AI. probably ground target or awacs (ill count em as the same)
         if net.get_player_info(arg1) ~= nil then
             local initiatorDetails = net.get_player_info(arg1)
-            eventData.Initiator = initiatorDetails.name
-            eventData.InitiatorUcid = initiatorDetails.ucid
+            eventData.initiator = initiatorDetails.name
+            eventData.initiator_ucid = initiatorDetails.ucid
         else    
-            eventData.Initiator = "AI"
+            eventData.initiator = "AI"
         end
-        eventData.InitiatorCoalition = arg3
+        eventData.initiator_coalition = arg3
 
         --target - if you cant get the player_info of the id, it means they are AI.
         if net.get_player_info(arg4) ~= nil then
             local targetDetails = net.get_player_info(arg4)
-            eventData.Target = targetDetails.name
+            eventData.target = targetDetails.name
         else    
-            eventData.Target = "AI"
+            eventData.target = "AI"
         end
 		if arg6 ~=nil then
-			eventData.TargetCoalition = arg6
+			eventData.target_coalition = arg6
 		end
         --weapon/misc
         eventData.id = 28
-        eventData.Weapon = arg7
-        eventData.Time = 1.1
+        eventData.weapon = arg7
+        eventData.time = 1.1
         sendBotEvent(eventData)
     end
 
@@ -224,15 +238,16 @@ playerList.onGameEvent = function(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
         --initiator
         if net.get_player_info(arg1) ~= nil then
             local initiatorDetails = net.get_player_info(arg1)
-            eventData.Initiator = initiatorDetails.name
-            eventData.InitiatorCoalition = initiatorDetails.side
+            eventData.initiator = initiatorDetails.name
+			eventData.initiator_ucid = initiatorDetails.ucid
+            eventData.initiator_coalition = initiatorDetails.side
         else    
-            eventData.Initiator = "AI"
+            eventData.initiator = "AI"
         end
         
         --weapon/misc
         eventData.id = 9
-        eventData.Time = 1.1
+        eventData.time = 1.1
         sendBotEvent(eventData)
     end
 
@@ -242,16 +257,17 @@ playerList.onGameEvent = function(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
         --initiator
         if net.get_player_info(arg1) ~= nil then
             local playerDetails = net.get_player_info(arg1)
-            eventData.Initiator = playerDetails.name
-            eventData.InitiatorCoalition = playerDetails.side
+            eventData.initiator = playerDetails.name
+			eventData.initiator_ucid = initiatorDetails.ucid
+            eventData.initiator_coalition = playerDetails.side
         else    
-            eventData.Initiator = "AI"
+            eventData.initiator = "AI"
         end
-        eventData.homeBase = arg3
+        eventData.home_base = arg3
 
         --weapons/misc
         eventData.id = 5
-        eventData.Time = 1.1
+        eventData.time = 1.1
         sendBotEvent(eventData)
     end
 
@@ -261,16 +277,17 @@ playerList.onGameEvent = function(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
         --initiator
         if net.get_player_info(arg1) ~= nil then
             local playerDetails = net.get_player_info(arg1)
-            eventData.Initiator = playerDetails.name
-            eventData.InitiatorCoalition = playerDetails.side
+            eventData.initiator = playerDetails.name
+			eventData.initiator_ucid = initiatorDetails.ucid
+            eventData.initiator_coalition = playerDetails.side
         else    
-            eventData.Initiator = "AI"
+            eventData.initiator = "AI"
         end
-        eventData.homeBase = arg3
+        eventData.home_base = arg3
         
         --weapon/misc
         eventData.id = 6
-        eventData.Time = 1.1
+        eventData.time = 1.1
         sendBotEvent(eventData)
     end
 
@@ -280,16 +297,17 @@ playerList.onGameEvent = function(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
         --initiator
         if net.get_player_info(arg1) ~= nil then
             local playerDetails = net.get_player_info(arg1)
-            eventData.Initiator = playerDetails.name
-            eventData.InitiatorCoalition = playerDetails.side
+            eventData.initiator = playerDetails.name
+			eventData.initiator_ucid = initiatorDetails.ucid
+            eventData.initiator_coalition = playerDetails.side
         else    
-            eventData.Initiator = "AI"
+            eventData.initiator = "AI"
         end
-        eventData.homebase = arg3
+        eventData.home_base = arg3
 
         --weapon/misc
         eventData.id = 3
-        eventData.Time = 1.1
+        eventData.time = 1.1
         sendBotEvent(eventData)
     end
 
@@ -299,29 +317,29 @@ playerList.onGameEvent = function(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
         --initiator
         if net.get_player_info(arg1) ~= nil then
             local playerDetails = net.get_player_info(arg1)
-            eventData.Initiator = playerDetails.name
-            eventData.InitiatorCoalition = playerDetails.side
+            eventData.initiator = playerDetails.name
+			eventData.initiator_ucid = playerDetails.ucid
+            eventData.initiator_coalition = playerDetails.side
         else    
-            eventData.Initiator = "AI"
+            eventData.initiator = "AI"
         end
-        eventData.homebase = arg3
+        eventData.home_base = arg3
         --weapon/misc
         eventData.id = 4
-        eventData.Time = 1.1
+        eventData.time = 1.1
         sendBotEvent(eventData)
     end
 	
 	if eventName == "base captured" then
 		local eventData = {}
 		eventData.id = 10
-		eventData.Place = arg2
-		eventData.Initiator = arg1
+		eventData.place = arg2
+		eventData.initiator = arg1
 		net.log("BASE CAP EVENT")
 		sendBotEvent(eventData)
 	end
 
 end
-
 -- ABOVE ARE THE BOT FUNCTIONS
 -------------------------------------------------------------------------------
 -- 
@@ -465,7 +483,7 @@ M.tacCmdrUcids = {
     "7a88f3ed4ba0e1fd52e2d751befa6ce8", -- TOPHATTERS 203 | Adwar added by mad rabbit
     "df80fd4f0f8683328658631998b1c8cc", -- TOPHATTERS 222 | Pitkun added by mad rabbit
     -----------------------------------
-    "00e5296e187ccfb8ee5edb55a7968d39", -- â˜…Ð’Ð�Ð Ð¯Ð“â˜…
+    "00e5296e187ccfb8ee5edb55a7968d39", -- â˜…Ð’Ð�Ð Ð¯Ð“â˜…
     "b148135d459915551e3d2b5489821c16", -- Santa
     "e5f8848b3ef84a88c635e5bc2a8e2a41", -- Djim
     "25bd8aec82ad88e26c5534abddb3cc22", -- HanSolo
@@ -628,6 +646,7 @@ function M.onPlayerTryChangeSlot(playerId, side, slotId)
 ----------------------
 --CHECK FOR IN-AIR SLOT SWAPPING
 ------------------------
+
     local player_UCID = net.get_player_info(playerId, 'ucid')
     if player_UCID == nil or player_UCID == "" then
         net.log("AIR_CHECK: Unable to get ucid " .. playerId)
@@ -651,7 +670,7 @@ function M.onPlayerTryChangeSlot(playerId, side, slotId)
     -- NON Aircraft slots check. (TACCOM / Game Master / JTAC)
     -------------------------------------------------------------------------------
     if isNonAircraftSlot(unitRole) then
-		----------------------------------------------------------
+				----------------------------------------------------------
         --Bot API check. 
         -----------------------------------------------------------
 		local res = {}
@@ -662,7 +681,7 @@ function M.onPlayerTryChangeSlot(playerId, side, slotId)
 		local playerDetails = net.get_player_info(playerId)
 		
         --get the gci members from discord
-		local res = queryBotAPI("/api/taccom/"..playerUcid.."/"..urlencode(playerName))
+		local res = queryBotAPI("/api/voice/"..playerUcid)
 		--check for fail reponse from the queryBotAPI func.
         --if its FAIL, it means the connection to the API failed (bots not running), so pretend the player was found in the response.
         if res == "FAIL" then
@@ -671,7 +690,7 @@ function M.onPlayerTryChangeSlot(playerId, side, slotId)
             --if the api request didnt fail, decode the JSON response, and check the value of "success". 1 = theyre in voice, 0 = not in voice
             local decode = JSON:decode(res)
 			--net.log(inspect(decode))
-            if decode["status"] == 1 then
+            if decode["response"] == "1" then
 				--do nothing, its a success.
 			else
             --Because we want the rest of the slotblocker to work correctly, we need to only return false when the slot should be blocked. DONT RETURN TRUE or it will skip the rest of the slot block logic.
