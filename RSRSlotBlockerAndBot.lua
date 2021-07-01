@@ -298,7 +298,7 @@ playerList.onGameEvent = function(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
         if net.get_player_info(arg1) ~= nil then
             local playerDetails = net.get_player_info(arg1)
             eventData.initiator = playerDetails.name
-			eventData.initiator_ucid = initiatorDetails.ucid
+	    eventData.initiator_ucid = playerDetails.ucid
             eventData.initiator_coalition = playerDetails.side
         else    
             eventData.initiator = "AI"
