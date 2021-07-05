@@ -366,7 +366,7 @@ M.gameMasterUcids = {
     "6e14d6e4deb4bf3b08d99713754cd1dc", -- n0xy Steam
     "87dd983a6c5b678de30c9adb55b18cf4", -- n0xy Standalone
     "263d36e3b60782a6c16e2b3c5cebf3f9", -- mad rabbit
-
+	"9de0e2e317a56c09aecff8eeeecdd47a", -- =AW=33COM 
 }
 
 M.tacCmdrUcids = {
